@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EzBid eExperiences</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .loading-spinner {
+      border: 3px solid #e5e7eb;
+      border-top: 3px solid #10b981;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease-in; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    pre { white-space: pre-wrap; word-break: break-word; }
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold text-gray-900">EzBid eExperiences</h1>
+            <p class="text-xs text-gray-500">e-GP Experience (Ongoing / Completed) API</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="totalBadge" class="hidden px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-full">
+            Total: 0
+          </span>
+          <button onclick="loadExperiences()" id="refreshBtn" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+            <svg id="refreshIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Records</p>
+        <p id="statTotal" class="text-2xl font-bold text-gray-900 mt-1">—</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Visible Page</p>
+        <p id="statVisible" class="text-2xl font-bold text-blue-600 mt-1">—</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">Contract Amount (BDT)</p>
+        <p id="statValue" class="text-2xl font-bold text-emerald-600 mt-1">—</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">With BO (page)</p>
+        <p id="statBO" class="text-2xl font-bold text-purple-600 mt-1">—</p>
+      </div>
+    </div>
+
+    <!-- Search & Filter -->
+    <div class="mb-4 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+      <div class="flex flex-col sm:flex-row gap-2">
+        <input id="searchInput" type="text" placeholder="Search by Tender ID, Certificate No, Package, Awarded To, Company..."
+               class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+               onkeydown="if(event.key==='Enter') searchExperiences()">
+        <select id="wcsFilter"
+                class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                onchange="loadExperiences()">
+          <option value="">All WCS</option>
+          <option value="ongoing">Ongoing</option>
+          <option value="completed">Completed</option>
+        </select>
+        <button onclick="searchExperiences()" class="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-lg transition-colors">
+          Search
+        </button>
+        <button onclick="clearSearch()" class="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors">
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
+      <div class="flex flex-col items-center gap-3">
+        <div class="loading-spinner"></div>
+        <p class="text-sm text-gray-500">Loading experiences...</p>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorState" class="hidden bg-red-50 border border-red-200 rounded-xl p-6">
+      <div class="flex gap-3">
+        <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div>
+          <h3 class="font-semibold text-red-900">Failed to load experiences</h3>
+          <p id="errorMessage" class="text-sm text-red-700 mt-1"></p>
+          <p class="text-xs text-red-600 mt-3">
+            Make sure the API is running at <code class="bg-red-100 px-1.5 py-0.5 rounded">http://localhost:8000</code>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
+      <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      <h3 class="text-lg font-semibold text-gray-900">No experiences found</h3>
+      <p class="text-sm text-gray-500 mt-2">The database is empty. Run the scraper to populate data.</p>
+    </div>
+
+    <!-- Data Table -->
+    <div id="tableContainer" class="hidden bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="text-left px-4 py-3 font-semibold text-gray-700 text-xs uppercase tracking-wide">Record ID</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-700 text-xs uppercase tracking-wide">WCS</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-700 text-xs uppercase tracking-wide">Tender ID</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-700 text-xs uppercase tracking-wide">Package</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-700 text-xs uppercase tracking-wide">Awarded To</th>
+              <th class="text-right px-4 py-3 font-semibold text-gray-700 text-xs uppercase tracking-wide">Amount (BDT)</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-700 text-xs uppercase tracking-wide">Status</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-700 text-xs uppercase tracking-wide">Publishing</th>
+              <th class="text-center px-4 py-3 font-semibold text-gray-700 text-xs uppercase tracking-wide">Action</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="modal" class="hidden fixed inset-0 bg-black/50 z-50 p-4 sm:p-8 overflow-y-auto">
+      <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-2xl mt-4 mb-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-xl z-20">
+          <div>
+            <h2 id="modalTitle" class="text-lg font-bold text-gray-900">Experience Detail</h2>
+            <p id="modalSubtitle" class="text-xs text-gray-500 mt-0.5"></p>
+          </div>
+          <button onclick="closeModal()" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <div id="modalContent" class="p-6"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center text-xs text-gray-400">
+    EzBid eExperiences &middot; API Endpoint: <code class="bg-gray-100 px-1.5 py-0.5 rounded">/api/v1/experiences</code>
+  </footer>
+
+  <script>
+    // Config: change API_BASE when hosting on a different origin.
+    const API_BASE = 'https://scraperv6.ezbid.cloud/api/v1';
+    const PAGE_SIZE = 50;
+    const REQUEST_TIMEOUT_MS = 15000;
+
+    let currentData = [];
+
+    const $ = (id) => document.getElementById(id);
+
+    // Fetch wrapper with timeout and consistent error shape.
+    async function apiFetch(path) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const res = await fetch(`${API_BASE}${path}`, { signal: controller.signal });
+        if (!res.ok) {
+          let detail = '';
+          try {
+            const body = await res.json();
+            detail = body && body.detail ? String(body.detail) : '';
+          } catch (_) {}
+          throw new Error(`HTTP ${res.status} ${res.statusText}${detail ? ` - ${detail}` : ''}`);
+        }
+        return await res.json();
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    async function loadExperiences() {
+      showState('loading');
+      $('refreshIcon').classList.add('animate-spin');
+
+      const wcs = $('wcsFilter').value;
+      const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: '0' });
+      if (wcs) params.set('wcs', wcs);
+
+      try {
+        const data = await apiFetch(`/experiences?${params.toString()}`);
+        currentData = Array.isArray(data.data) ? data.data : [];
+        renderStats(currentData, data.total_count);
+        renderTable(currentData);
+        showState(currentData.length ? 'table' : 'empty');
+      } catch (err) {
+        $('errorMessage').textContent = err.message || 'Unknown error';
+        showState('error');
+      } finally {
+        $('refreshIcon').classList.remove('animate-spin');
+      }
+    }
+
+    async function searchExperiences() {
+      const q = $('searchInput').value.trim();
+      if (!q) return loadExperiences();
+
+      showState('loading');
+      $('refreshIcon').classList.add('animate-spin');
+      const params = new URLSearchParams({ q, limit: String(PAGE_SIZE), offset: '0' });
+
+      try {
+        const data = await apiFetch(`/experiences/search?${params.toString()}`);
+        currentData = Array.isArray(data.data) ? data.data : [];
+        renderStats(currentData, data.total_count);
+        renderTable(currentData);
+        showState(currentData.length ? 'table' : 'empty');
+      } catch (err) {
+        $('errorMessage').textContent = err.message || 'Search failed';
+        showState('error');
+      } finally {
+        $('refreshIcon').classList.remove('animate-spin');
+      }
+    }
+
+    function clearSearch() {
+      $('searchInput').value = '';
+      $('wcsFilter').value = '';
+      loadExperiences();
+    }
+
+    // Stats: total_count is server-side; the other three are aggregates of the
+    // currently visible page, which is why they are labelled "page".
+    function renderStats(rows, totalCount) {
+      $('statTotal').textContent = (typeof totalCount === 'number') ? totalCount : rows.length;
+      $('statVisible').textContent = rows.length;
+
+      let amount = 0;
+      for (const r of rows) {
+        const v = parseFloat(r.contract_amount_bdt || 0);
+        if (!isNaN(v)) amount += v;
+      }
+      $('statValue').textContent = formatMoney(amount);
+
+      $('statBO').textContent = rows.filter(r => r.beneficial_ownership).length;
+
+      const badge = $('totalBadge');
+      badge.textContent = `Total: ${typeof totalCount === 'number' ? totalCount : rows.length}`;
+      badge.classList.remove('hidden');
+    }
+
+    function renderTable(rows) {
+      const tbody = $('tableBody');
+      tbody.innerHTML = rows.map((row, idx) => rowHtml(row, idx)).join('');
+    }
+
+    function rowHtml(row, idx) {
+      const packageHtml = row.package_title
+        ? `<div class="text-xs text-gray-700 line-clamp-2">${escapeHtml(truncate(row.package_title, 80))}</div>
+           ${row.package_no ? `<div class="text-xs text-gray-400 font-mono mt-0.5">${escapeHtml(row.package_no)}</div>` : ''}`
+        : '<span class="text-gray-400 text-xs">—</span>';
+
+      const wcsBadge = row.wcs === 'ongoing'
+        ? '<span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">Ongoing</span>'
+        : row.wcs === 'completed'
+          ? '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">Completed</span>'
+          : '<span class="text-gray-400 text-xs">—</span>';
+
+      return `
+        <tr class="hover:bg-gray-50 transition-colors fade-in" style="animation-delay: ${idx * 30}ms">
+          <td class="px-4 py-3 text-gray-700 font-mono text-xs">${escapeHtml(row.egp_record_id || '—')}</td>
+          <td class="px-4 py-3 whitespace-nowrap">${wcsBadge}</td>
+          <td class="px-4 py-3 font-mono font-semibold text-gray-900">${escapeHtml(row.tender_id || '—')}</td>
+          <td class="px-4 py-3 max-w-[260px]">${packageHtml}</td>
+          <td class="px-4 py-3 text-gray-700 text-xs max-w-[200px]">
+            ${row.contract_awarded_to ? escapeHtml(row.contract_awarded_to) : '<span class="text-gray-400">—</span>'}
+          </td>
+          <td class="px-4 py-3 text-right">
+            ${row.contract_amount_bdt
+              ? `<div class="font-mono font-semibold text-gray-900">${escapeHtml(formatNumber(row.contract_amount_bdt))}</div>`
+              : '<span class="text-gray-400 text-xs">—</span>'}
+          </td>
+          <td class="px-4 py-3 text-gray-700 text-xs whitespace-nowrap">
+            ${row.work_status ? escapeHtml(row.work_status) : '<span class="text-gray-400">—</span>'}
+          </td>
+          <td class="px-4 py-3 text-gray-700 text-xs whitespace-nowrap">
+            ${formatDate(row.publishing_date)}
+          </td>
+          <td class="px-4 py-3 text-center">
+            <button
+              type="button"
+              class="view-btn text-emerald-600 hover:text-emerald-700 font-medium text-xs hover:underline"
+              data-egp-id="${escapeHtml(row.egp_record_id || '')}"
+              data-wcs="${escapeHtml(row.wcs || '')}">
+              View
+            </button>
+          </td>
+        </tr>
+      `;
+    }
+
+    // Event delegation: avoids injecting IDs into inline handlers.
+    $('tableBody').addEventListener('click', (e) => {
+      const btn = e.target.closest('.view-btn');
+      if (!btn) return;
+      const egpId = btn.getAttribute('data-egp-id');
+      const wcs = btn.getAttribute('data-wcs');
+      if (egpId && wcs) showDetail(egpId, wcs);
+    });
+
+    async function showDetail(egpRecordId, wcs) {
+      $('modal').classList.remove('hidden');
+      $('modalTitle').textContent = `Experience ${egpRecordId}`;
+      $('modalSubtitle').textContent = `WCS: ${wcs} · Loading...`;
+      $('modalContent').innerHTML = `
+        <div class="flex flex-col items-center gap-3 py-12">
+          <div class="loading-spinner"></div>
+          <p class="text-sm text-gray-500">Loading detail...</p>
+        </div>
+      `;
+
+      try {
+        const data = await apiFetch(
+          `/experiences/${encodeURIComponent(egpRecordId)}/${encodeURIComponent(wcs)}`
+        );
+        renderDetail(data);
+      } catch (err) {
+        $('modalSubtitle').textContent = 'Error';
+        $('modalContent').innerHTML = `
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p class="text-sm text-red-700">Failed to load: ${escapeHtml(err.message)}</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderDetail(data) {
+      const w = data.work || {};
+      const owners = Array.isArray(data.beneficial_owners) ? data.beneficial_owners : [];
+
+      $('modalSubtitle').textContent = w.package_title ? truncate(w.package_title, 100) : `WCS: ${w.wcs || '—'}`;
+
+      const html = `
+        <!-- Work Identity -->
+        <section class="mb-6">
+          <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3">Work Identity</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            ${infoCard('E-GP Record ID', w.egp_record_id || '—', 'font-mono')}
+            ${infoCard('WCS', w.wcs || '—')}
+            ${infoCard('Tender ID', w.tender_id || '—', 'font-mono')}
+            ${infoCard('Tender Ref No', w.tender_ref_no || '—', 'font-mono text-xs')}
+            ${infoCard('Package No', w.package_no || '—', 'font-mono text-xs')}
+            ${infoCard('Experience Certificate No', w.experience_certificate_no || '—', 'font-mono text-xs')}
+            ${infoCard('Work Category', w.work_category || '—')}
+            ${infoCard('Procurement Nature', w.procurement_nature || '—')}
+            ${infoCard('Procurement Type', w.procurement_type || '—')}
+            ${infoCard('Procurement Method', w.procurement_method || '—')}
+            ${infoCard('Tender Type', w.tender_type || '—')}
+            ${infoCard('Publishing Date', formatDate(w.publishing_date))}
+            ${infoCard('Tender Publication', formatDate(w.tender_publication_date))}
+          </div>
+          ${w.package_title ? `
+            <div class="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p class="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">Package Title</p>
+              <p class="text-sm text-gray-700 leading-relaxed">${escapeHtml(w.package_title)}</p>
+            </div>
+          ` : ''}
+          ${w.name_of_work ? `
+            <div class="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Name of Work</p>
+              <p class="text-sm text-gray-700 leading-relaxed">${escapeHtml(w.name_of_work)}</p>
+            </div>
+          ` : ''}
+        </section>
+
+        <!-- Organization -->
+        <section class="mb-6">
+          <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3">Procuring Entity &amp; Organization</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            ${infoCard('Ministry / Division / PE', w.ministry_division_pe_raw || '—')}
+            ${infoCard('Organization', w.organization_name || '—')}
+            ${infoCard('PE Office', w.pe_office_name || '—')}
+            ${infoCard('PE Name', w.pe_name || '—')}
+          </div>
+        </section>
+
+        <!-- Contract & Award -->
+        <section class="mb-6">
+          <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3">Contract &amp; Award</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+              <p class="text-xs font-semibold text-emerald-600 uppercase tracking-wide mb-1">Contract Amount (BDT)</p>
+              <p class="text-2xl font-bold text-emerald-700 font-mono">
+                ${w.contract_amount_bdt ? escapeHtml(formatNumber(w.contract_amount_bdt)) : '—'}
+              </p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+              <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Awarded To</p>
+              <p class="text-sm font-semibold text-gray-900">${escapeHtml(w.contract_awarded_to || '—')}</p>
+              ${w.company_name ? `<p class="text-xs text-gray-600 mt-1">${escapeHtml(w.company_name)}</p>` : ''}
+              ${w.company_unique_id ? `<p class="text-xs text-gray-500 font-mono mt-1">Company UID: ${escapeHtml(w.company_unique_id)}</p>` : ''}
+              ${w.is_jvca ? `<p class="text-xs text-purple-600 font-semibold mt-1">JVCA</p>` : ''}
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            ${infoCard('Contract No', w.contract_no || '—', 'font-mono')}
+            ${infoCard('Contract Value (BDT)', w.contract_value_bdt ? formatNumber(w.contract_value_bdt) : '—')}
+            ${infoCard('Start Date', formatDate(w.list_contract_start_date))}
+            ${infoCard('End Date', formatDate(w.list_contract_end_date))}
+          </div>
+        </section>
+
+        <!-- Progress & Status -->
+        <section class="mb-6">
+          <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3">Progress &amp; Status</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            ${infoCard('Work Status', w.work_status || '—')}
+            ${infoCard('Completion Status', w.work_completion_status || '—')}
+            ${infoCard('Physical Progress', w.physical_progress_pct ? `${w.physical_progress_pct}%` : '—')}
+            ${infoCard('Financial Progress', w.financial_progress_pct ? `${w.financial_progress_pct}%` : '—')}
+            ${infoCard('Physical Progress Date', formatDate(w.date_of_physical_progress))}
+            ${infoCard('Financial Progress Date', formatDate(w.date_of_financial_progress))}
+          </div>
+          ${w.remarks ? `
+            <div class="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Remarks</p>
+              <p class="text-sm text-gray-700 leading-relaxed">${escapeHtml(w.remarks)}</p>
+            </div>
+          ` : ''}
+          ${w.comments_by_pe ? `
+            <div class="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3">
+              <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Comments by PE</p>
+              <p class="text-sm text-gray-700 leading-relaxed">${escapeHtml(w.comments_by_pe)}</p>
+            </div>
+          ` : ''}
+        </section>
+
+        <!-- Beneficial Ownership -->
+        ${w.beneficial_ownership && owners.length ? `
+          <section class="mb-6">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide">Beneficial Ownership</h3>
+              <span class="px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+                ${owners.length} owner${owners.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">#</th>
+                    <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">Name</th>
+                    <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">Designation</th>
+                    <th class="text-right px-3 py-2 font-semibold text-gray-700 text-xs">Ownership %</th>
+                    <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">Country</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                  ${owners.map(o => `
+                    <tr class="hover:bg-gray-50">
+                      <td class="px-3 py-2 text-gray-500 text-xs">${escapeHtml(o.row_index ?? '—')}</td>
+                      <td class="px-3 py-2 text-gray-900 font-medium">${escapeHtml(o.name || '—')}</td>
+                      <td class="px-3 py-2 text-gray-700 text-xs">${escapeHtml(o.designation || '—')}</td>
+                      <td class="px-3 py-2 text-right text-gray-900 font-mono">${escapeHtml(o.ownership_pct || '—')}</td>
+                      <td class="px-3 py-2 text-gray-700 text-xs">${escapeHtml(o.country || '—')}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ` : ''}
+
+        <!-- Scrape Metadata -->
+        <section class="mb-6">
+          <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide mb-3">Scrape Metadata</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            ${infoCard('First Scraped', formatDate(w.first_scraped_at))}
+            ${infoCard('Last Scraped', formatDate(w.last_scraped_at))}
+            ${infoCard('Scrape Version', w.scrape_version || '—', 'font-mono')}
+          </div>
+        </section>
+
+        <!-- Raw JSON -->
+        <section>
+          <details class="bg-gray-900 rounded-lg overflow-hidden">
+            <summary class="cursor-pointer px-4 py-3 text-xs font-semibold text-gray-300 uppercase tracking-wide hover:bg-gray-800">
+              Raw JSON Response
+            </summary>
+            <pre class="text-xs text-emerald-300 p-4 overflow-x-auto max-h-96">${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+          </details>
+        </section>
+      `;
+
+      $('modalContent').innerHTML = html;
+    }
+
+    function infoCard(label, value, extraClass = '') {
+      return `
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">${escapeHtml(label)}</p>
+          <p class="text-sm text-gray-900 ${extraClass}">${escapeHtml(String(value ?? '—'))}</p>
+        </div>
+      `;
+    }
+
+    function closeModal() {
+      $('modal').classList.add('hidden');
+      $('modalContent').innerHTML = '';
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    function showState(state) {
+      ['loadingState', 'errorState', 'emptyState', 'tableContainer'].forEach(id => {
+        $(id).classList.add('hidden');
+      });
+      const map = {
+        loading: 'loadingState',
+        error: 'errorState',
+        empty: 'emptyState',
+        table: 'tableContainer',
+      };
+      if (map[state]) $(map[state]).classList.remove('hidden');
+    }
+
+    function escapeHtml(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function truncate(str, n) {
+      if (!str) return '';
+      const s = String(str);
+      return s.length > n ? s.slice(0, n) + '…' : s;
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return String(iso);
+        return d.toLocaleDateString('en-GB', {
+          day: '2-digit', month: 'short', year: 'numeric',
+        });
+      } catch {
+        return String(iso);
+      }
+    }
+
+    function formatNumber(num) {
+      if (num == null) return '—';
+      const n = parseFloat(num);
+      if (isNaN(n)) return String(num);
+      return n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    }
+
+    function formatMoney(amount) {
+      if (!amount) return '0';
+      if (amount >= 10000000) return (amount / 10000000).toFixed(2) + ' Cr';
+      if (amount >= 100000) return (amount / 100000).toFixed(2) + ' L';
+      return amount.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    }
+
+    loadExperiences();
+  </script>
+
+</body>
+</html>
