@@ -192,7 +192,7 @@
   <script>
     // Config: change API_BASE when hosting on a different origin.
     const API_BASE = 'https://scraperv6.ezbid.cloud/api/v1';
-    const PAGE_SIZE = 50;
+    const PAGE_SIZE = 100;
     const REQUEST_TIMEOUT_MS = 15000;
 
     let currentData = [];
@@ -377,6 +377,7 @@
     function renderDetail(data) {
       const w = data.work || {};
       const owners = Array.isArray(data.beneficial_owners) ? data.beneficial_owners : [];
+      const partners = Array.isArray(data.jvca_partners) ? data.jvca_partners : [];
 
       $('modalSubtitle').textContent = w.package_title ? truncate(w.package_title, 100) : `WCS: ${w.wcs || '—'}`;
 
@@ -439,7 +440,7 @@
               <p class="text-sm font-semibold text-gray-900">${escapeHtml(w.contract_awarded_to || '—')}</p>
               ${w.company_name ? `<p class="text-xs text-gray-600 mt-1">${escapeHtml(w.company_name)}</p>` : ''}
               ${w.company_unique_id ? `<p class="text-xs text-gray-500 font-mono mt-1">Company UID: ${escapeHtml(w.company_unique_id)}</p>` : ''}
-              ${w.is_jvca ? `<p class="text-xs text-purple-600 font-semibold mt-1">JVCA</p>` : ''}
+              ${String(w.is_jvca || '').toUpperCase() === 'YES' ? `<p class="text-xs text-purple-600 font-semibold mt-1">JVCA</p>` : ''}
             </div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -449,6 +450,8 @@
             ${infoCard('End Date', formatDate(w.list_contract_end_date))}
           </div>
         </section>
+
+        ${jvcaSection(partners)}
 
         <!-- Progress & Status -->
         <section class="mb-6">
@@ -475,41 +478,7 @@
           ` : ''}
         </section>
 
-        <!-- Beneficial Ownership -->
-        ${w.beneficial_ownership && owners.length ? `
-          <section class="mb-6">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide">Beneficial Ownership</h3>
-              <span class="px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
-                ${owners.length} owner${owners.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <table class="w-full text-sm">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">#</th>
-                    <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">Name</th>
-                    <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">Designation</th>
-                    <th class="text-right px-3 py-2 font-semibold text-gray-700 text-xs">Ownership %</th>
-                    <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">Country</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                  ${owners.map(o => `
-                    <tr class="hover:bg-gray-50">
-                      <td class="px-3 py-2 text-gray-500 text-xs">${escapeHtml(o.row_index ?? '—')}</td>
-                      <td class="px-3 py-2 text-gray-900 font-medium">${escapeHtml(o.name || '—')}</td>
-                      <td class="px-3 py-2 text-gray-700 text-xs">${escapeHtml(o.designation || '—')}</td>
-                      <td class="px-3 py-2 text-right text-gray-900 font-mono">${escapeHtml(o.ownership_pct || '—')}</td>
-                      <td class="px-3 py-2 text-gray-700 text-xs">${escapeHtml(o.country || '—')}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        ` : ''}
+        ${ownersSection(owners)}
 
         <!-- Scrape Metadata -->
         <section class="mb-6">
@@ -533,6 +502,99 @@
       `;
 
       $('modalContent').innerHTML = html;
+    }
+
+    // JVCA partners: one row per joint-venture partner.
+    function jvcaSection(partners) {
+      if (!partners.length) return '';
+      return `
+        <section class="mb-6">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide">JVCA Partners</h3>
+            <span class="px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+              ${partners.length} partner${partners.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">#</th>
+                  <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">Company</th>
+                  <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">Role</th>
+                  <th class="text-right px-3 py-2 font-semibold text-gray-700 text-xs">Share %</th>
+                  <th class="text-right px-3 py-2 font-semibold text-gray-700 text-xs">Amount (BDT)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                ${partners.map(p => `
+                  <tr class="hover:bg-gray-50">
+                    <td class="px-3 py-2 text-gray-500 text-xs">${escapeHtml(p.row_index ?? '—')}</td>
+                    <td class="px-3 py-2 text-gray-900 font-medium">${escapeHtml(p.company_name || '—')}</td>
+                    <td class="px-3 py-2 text-gray-700 text-xs">${escapeHtml(p.role || '—')}</td>
+                    <td class="px-3 py-2 text-right text-gray-900 font-mono">${escapeHtml(p.share_pct || '—')}</td>
+                    <td class="px-3 py-2 text-right text-gray-900 font-mono">${p.amount_bdt ? escapeHtml(formatNumber(p.amount_bdt)) : '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      `;
+    }
+
+    // Beneficial owners grouped by company block (company_index).
+    // Rows scraped before multi-company support have a null company_index
+    // and fall into a single ungrouped table.
+    function ownersSection(owners) {
+      if (!owners.length) return '';
+
+      const groups = new Map();
+      for (const o of owners) {
+        const key = o.company_index ?? 0;
+        if (!groups.has(key)) groups.set(key, { name: o.company_name, rows: [] });
+        groups.get(key).rows.push(o);
+      }
+
+      const tables = [...groups.values()].map(g => `
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden mb-3">
+          ${g.name ? `<div class="px-3 py-2 bg-emerald-50 border-b border-emerald-100 text-xs font-semibold text-emerald-800">${escapeHtml(g.name)}</div>` : ''}
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">#</th>
+                <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">Name</th>
+                <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">Designation</th>
+                <th class="text-right px-3 py-2 font-semibold text-gray-700 text-xs">Ownership %</th>
+                <th class="text-left px-3 py-2 font-semibold text-gray-700 text-xs">Country</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              ${g.rows.map(o => `
+                <tr class="hover:bg-gray-50">
+                  <td class="px-3 py-2 text-gray-500 text-xs">${escapeHtml(o.row_index ?? '—')}</td>
+                  <td class="px-3 py-2 text-gray-900 font-medium">${escapeHtml(o.name || '—')}</td>
+                  <td class="px-3 py-2 text-gray-700 text-xs">${escapeHtml(o.designation || '—')}</td>
+                  <td class="px-3 py-2 text-right text-gray-900 font-mono">${escapeHtml(o.ownership_pct || '—')}</td>
+                  <td class="px-3 py-2 text-gray-700 text-xs">${escapeHtml(o.country || '—')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `).join('');
+
+      return `
+        <section class="mb-6">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wide">Beneficial Ownership</h3>
+            <span class="px-2.5 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
+              ${owners.length} owner${owners.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          ${tables}
+        </section>
+      `;
     }
 
     function infoCard(label, value, extraClass = '') {
